@@ -30,14 +30,14 @@ describe('Memoizer', function() {
 
     it('should run express', function(done) {
         var callCount = 0;
-        app.get('/hello.txt', function (req, res) {
+        app.get('/hello', function (req, res) {
             callCount += 1;
             res.status(200).send('Hello '+callCount);
         });
-        request('http://localhost:'+port+'/hello.txt', function (error, response, body) {
+        request('http://localhost:'+port+'/hello', function (error, response, body) {
             response.statusCode.should.eql(200);
             body.should.eql('Hello 1');
-            request('http://localhost:'+port+'/hello.txt', function (error, response, body) {
+            request('http://localhost:'+port+'/hello', function (error, response, body) {
                 response.statusCode.should.eql(200);
                 body.should.eql('Hello 2');
                 done();
@@ -49,16 +49,39 @@ describe('Memoizer', function() {
         var cache = require('lru-cache')({ max: 10000, maxAge: 1000*60 });
         var memoizer = require('../memoizer.js')(cache);
         var callCount = 0;
-        app.get('/hello.txt', memoizer.memoize(function (req, res) {
+        app.get('/hello', memoizer.memoize(function (req, res) {
             callCount += 1;
             res.status(200).send('Hello '+callCount);
         }));
-        request('http://localhost:'+port+'/hello.txt', function (error, response, body) {
+        request('http://localhost:'+port+'/hello', function (error, response, body) {
             response.statusCode.should.eql(200);
             body.should.eql('Hello 1');
-            request('http://localhost:'+port+'/hello.txt', function (error, response, body) {
+            request('http://localhost:'+port+'/hello', function (error, response, body) {
                 response.statusCode.should.eql(200);
                 body.should.eql('Hello 1');
+                done();
+            });
+        });
+    });
+
+    it('should be a cache miss for different verbs', function(done) {
+        var cache = require('lru-cache')({ max: 10000, maxAge: 1000*60 });
+        var memoizer = require('../memoizer.js')(cache);
+        var callCount = 0;
+        app.get('/hello', memoizer.memoize(function (req, res) {
+            callCount += 1;
+            res.status(200).send('Hello '+callCount);
+        }));
+        app.post('/hello', memoizer.memoize(function (req, res) {
+            callCount += 1;
+            res.status(200).send('Hello '+callCount);
+        }));
+        request('http://localhost:'+port+'/hello', function (error, response, body) {
+            response.statusCode.should.eql(200);
+            body.should.eql('Hello 1');
+            request.post('http://localhost:'+port+'/hello', function (error, response, body) {
+                response.statusCode.should.eql(200);
+                body.should.eql('Hello 2');
                 done();
             });
         });
